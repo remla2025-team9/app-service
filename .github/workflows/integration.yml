@@ -1,0 +1,32 @@
+name: Integration
+
+on:
+  pull_request:
+    branches: [main] 
+    paths-ignore: [".github/**", "README.md"]       
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # Enables the runner to emulate different architectures for the build
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # Creates a builder instance capable of multi-platform builds
+      - name: Set up docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build docker image for multi-architecture
+        id: docker_build_validate
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=main
