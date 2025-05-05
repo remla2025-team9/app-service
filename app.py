@@ -28,6 +28,7 @@ def healthcheck():
     """Returns a simple health check message."""
     return 'App service is running!', 200
 
+
 @app.route('/version')
 def version():
     """Returns the application version."""

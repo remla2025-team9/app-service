@@ -93,7 +93,7 @@ docker run -p 5000:5000 app-service
 
 # You can override environment variables during run time:
 # docker run -d -p 5000:5000 --name my-running-app \
-#   -e GREETING_MESSAGE="Hello from the docker run command!" \
+#   -e MODEL_SERVICE_URL="http://localhost:8080/" \
 #   my-flask-app
 ```
 The application will be accessible at `http://localhost:5000`.
@@ -118,7 +118,9 @@ The application uses environment variables for configuration:
 *   `FLASK_APP`: (Default: `app.py`) Specifies the application file for Flask.
 *   `FLASK_RUN_HOST`: (Default: `0.0.0.0`) Host Flask listens on inside the container.
 *   `FLASK_DEBUG`: (Default: `0`) Set to `1` to enable Flask's debug mode (Do NOT use `1` in production).
-** Use Docker secrets, orchestration tool secrets management, or pass via `-e` for non-sensitive runtime config.
+*   `MODEL_SERVICE_URL`: URL of the model service. Should be set to communicate with the model service.
+
+Use Docker secrets, orchestration tool secrets management, or pass via `-e` for non-sensitive runtime config.
 
 ## Continuous Integration
 
@@ -127,3 +129,61 @@ This repository uses GitHub Actions for Continuous Integration. The workflow is 
 On every pull request targeting the `main` branch, the workflow automatically:
 1.  Checks out the code.
 2.  Builds the Docker image for `linux/amd64` and `linux/arm64` to validate the build process (without pushing the image).
+3.  
+
+
+## Continuous Delivery (Pre-Release Tagging)
+
+This repository utilizes GitHub Actions for a simple Continuous Delivery process focused on automatic version tagging on the `main` branch. The workflow is defined in `.github/workflows/delivery.yml`.
+
+**Process:**
+
+1.  **Trigger:** The workflow runs automatically whenever changes are pushed to the `main` branch.
+2.  **Versioning:** It uses the `mathieudutour/github-tag-action` to:
+    *   Check the latest existing Git tag.
+    *   Determine the next appropriate version based on semantic versioning rules, specifically for pre-releases.
+    *   If the previous tag was a stable release (e.g., `v1.2.0`), it calculates the next *pre-patch* version (e.g., `v1.2.1-pre.0`).
+    *   If the previous tag was already a pre-release (e.g., `v1.2.1-pre.0`), it increments the pre-release identifier (e.g., `v1.2.1-pre.1`).
+    *   If no previous tags exist, it starts with `v0.1.0-pre.0`.
+3.  **Tag Creation:** A new Git tag (prefixed with `v` and appended with `-pre.[number]`) corresponding to the calculated version is automatically created and pushed to the repository.
+
+**Important Notes:**
+
+*   This workflow **only creates pre-release Git tags** on the `main` branch. It does **not** create formal GitHub Releases or trigger deployments.
+*   Full releases (stable tags without the `-pre` suffix) are intentionally disabled in this workflow (`release_branches: '_NONE_'`) and would need to be created via the deployment workflow manually
+
+## Deployment Workflow (Manual Trigger)
+
+This repository includes a GitHub Actions workflow for building and deploying stable releases. The workflow is defined in `.github/workflows/deployment.yml`.
+
+**Process:**
+
+1.  **Trigger:** This workflow is **not** automatic. It must be triggered manually via the GitHub Actions UI (`workflow_dispatch`). You can typically trigger it from the `main` branch.
+2.  **Versioning:**
+    *   The workflow first determines the target *stable* version number.
+    *   If the workflow was triggered by pushing a stable tag (e.g., `v1.2.0`), it uses that exact version number (stripping the `v`).
+    *   If triggered manually (e.g., on the `main` branch), it finds the *most recent* tag (usually a pre-release like `v1.2.0-pre.5`) and strips the `-pre.*` suffix to get the base stable version (e.g., `1.2.0`).
+    *   It then creates a new, stable Git tag matching this resolved version (e.g., `1.2.0`) if it doesn't already exist.
+3.  **Docker Build & Push:**
+    *   Sets up Docker Buildx for multi-platform builds (`linux/amd64`, `linux/arm64`).
+    *   Logs into the GitHub Container Registry (GHCR).
+    *   Builds the Docker image, injecting the resolved stable version number as the `APP_VERSION` build argument (making the application version-aware).
+    *   Pushes the image to GHCR using two tags:
+        *   `latest`
+        *   The resolved stable version number (e.g., `ghcr.io/owner/repo:1.2.0`)
+    *   Utilizes the registry for build caching (`type=registry`) to speed up subsequent builds.
+4.  **Next Pre-Release Tag (if triggered on `main`):**
+    *   *After successfully creating the stable tag and pushing the image*, if the workflow was triggered on the `main` branch, it automatically calculates and creates the *next* pre-release patch tag (e.g., if `1.2.0` was just released, it creates `v1.2.1-pre.0`). This prepares the repository for the next cycle of development and pre-releases based on the `main` branch.
+
+**How to Use:**
+
+1.  Navigate to the "Actions" tab of the repository on GitHub.
+2.  Select the "Deployment" workflow from the list on the left.
+3.  Click the "Run workflow" dropdown button.
+4.  Typically, you will run it from the `main` branch.
+5.  Click "Run workflow".
+
+**Important Notes:**
+
+*   This workflow creates **stable Git tags** (e.g., `1.2.0`) and pushes **stable container images** to GHCR.
+*   The final step of creating the *next* pre-release tag only occurs when manually dispatched from the `main` branch, facilitating continuous development after a release.
