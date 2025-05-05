@@ -1,2 +1,8 @@
 venv
 .env
+
+# Ignore Python bytecode and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

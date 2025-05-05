@@ -40,6 +40,23 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### 2. Configure Environment Variables
+
+This project uses environment variables for configuration. A template file is provided to help you set up your local environment.
+
+*   **Copy the template:** Create your local environment file by copying the template:
+    ```bash
+    # On Linux/macOS:
+    cp .env.template .env
+
+    # On Windows (Command Prompt):
+    copy .env.template .env
+    ```
+
+*   **Edit `.env`:** Open the newly created `.env` file in your text editor.
+*   **Fill in values:** Replace the placeholder values with your actual local development settings.
+*   **Important:** The `.env` file should **NOT** be committed to Git (it should be listed in your `.gitignore`). It's for your local setup only.
+
 ## Running the Application
 
 ### Locally (using Flask development server)
