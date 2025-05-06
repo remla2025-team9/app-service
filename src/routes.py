@@ -1,5 +1,5 @@
-from flask import jsonify, current_app, Blueprint
-from model_service import fetch_model_service_version
+from flask import jsonify, current_app, Blueprint, request
+from model_service import fetch_model_service_version, predict_sentiment
 from config import default_config
 
 bp = Blueprint('routes', __name__)
@@ -21,5 +21,20 @@ def version():
     response_data = {
         'app-service-version': app_service_version,
         'model-service-version': model_service_version
+    }
+    return jsonify(response_data), 200
+
+@bp.route('/predict-sentiment-review', methods=['POST'])
+def predict():
+    """Predicts sentiment for a given review. 1 for positive, 0 for negative."""
+    data = request.get_json()
+    if not data or 'review' not in data:
+        return jsonify({'error': 'Invalid input'}), 400
+
+    review = data['review']
+    prediction = predict_sentiment(review)
+
+    response_data = {
+        'prediction': prediction,
     }
     return jsonify(response_data), 200
