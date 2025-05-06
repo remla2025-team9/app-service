@@ -1,5 +1,5 @@
 from flask import jsonify, current_app, Blueprint, request
-from model_service import fetch_model_service_version, predict_sentiment
+from model_service import fetch_model_service_version, predict_sentiment, ModelServiceError
 from config import default_config
 
 bp = Blueprint('routes', __name__)
@@ -27,14 +27,25 @@ def version():
 @bp.route('/predict-sentiment-review', methods=['POST'])
 def predict():
     """Predicts sentiment for a given review. 1 for positive, 0 for negative."""
-    data = request.get_json()
-    if not data or 'review' not in data:
-        return jsonify({'error': 'Invalid input'}), 400
+    try:
+        data = request.get_json()
+        if not data or 'review' not in data:
+            return jsonify({'error': 'Invalid input: review field is required'}), 400
 
-    review = data['review']
-    prediction = predict_sentiment(review)
+        review = data['review']
+        if not isinstance(review, str) or not review.strip():
+            return jsonify({'error': 'Invalid input: review must be a non-empty string'}), 400
 
-    response_data = {
-        'prediction': prediction,
-    }
-    return jsonify(response_data), 200
+        prediction = predict_sentiment(review)
+        response_data = {
+            'prediction': prediction,
+        }
+        return jsonify(response_data), 200
+
+    except ModelServiceError as e:
+        return jsonify({'error': f'Model service error: {str(e)}'}), 503
+    except ValueError as e:
+        return jsonify({'error': f'Invalid input: {str(e)}'}), 400
+    except Exception as e:
+        current_app.logger.error(f'Unexpected error in predict endpoint: {str(e)}')
+        return jsonify({'error': 'Internal server error'}), 500
