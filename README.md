@@ -5,7 +5,7 @@ Flask app
 ## Description
 
 This service currently provides:
-*   A healthchck route (`/healthcheck`) that displays the health status of the flask service
+*   A healthcheck route (`/healthcheck`) that displays the health status of the flask service
 *   A Dockerfile for building a container image.
 *   A GitHub Actions workflow for basic CI/CD
 
