@@ -1,11 +1,13 @@
 import os
 from flask import Flask
+from flask_cors import CORS
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
 # Set configuration variables from environment variables
 DEBUG_MODE = os.getenv('FLASK_DEBUG', '0') == '1'
@@ -32,7 +34,10 @@ def healthcheck():
 @app.route('/version')
 def version():
     """Returns the application version."""
-    return {'version': app.config['APP_VERSION']}, 200
+    return {
+        'app-service-version': app.config['APP_VERSION'],
+        'model-service-version': "Unknown"
+    }, 200
 
 
 if __name__ == '__main__':
