@@ -1,5 +1,5 @@
 from flask import jsonify, current_app, Blueprint, request
-from model_service import fetch_model_service_version, predict_sentiment, ModelServiceError
+from model_service import fetch_model_service_version, predict_sentiment
 from config import default_config
 
 bp = Blueprint('routes', __name__)
@@ -42,8 +42,6 @@ def predict():
         }
         return jsonify(response_data), 200
 
-    except ModelServiceError as e:
-        return jsonify({'error': f'Model service error: {str(e)}'}), 503
     except ValueError as e:
         return jsonify({'error': f'Invalid input: {str(e)}'}), 400
     except Exception as e:
