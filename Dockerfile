@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY requirements.txt ./
 
+RUN apt-get update && apt-get install -y git
 RUN pip install --no-cache-dir --trusted-host pypi.python.org -r requirements.txt
 
 COPY . .
