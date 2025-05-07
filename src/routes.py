@@ -1,20 +1,49 @@
 from flask import jsonify, current_app, Blueprint, request
 from model_service import fetch_model_service_version, predict_sentiment
 from config import default_config
-from lib_version.version_util import VersionUtil
+# from lib_version.version_util import VersionUtil
 
 bp = Blueprint('routes', __name__)
 
 @bp.route('/healthcheck')
 def healthcheck():
-    """Returns a simple health check message."""
+    """
+    Returns a health check message.
+    ---
+    responses:
+      200:
+        description: Service is healthy
+        schema:
+          type: string
+          example: App service is running!
+    """
     return 'App service is running!', 200
 
 @bp.route('/version')
 def version():
-    """Returns the application version and model service version."""
+    """
+    Returns version information for all services.
+    ---
+    produces:
+      - application/json
+    responses:
+      200:
+        description: Version information
+        schema:
+          type: object
+          properties:
+            app-service-version:
+              type: string
+              example: "1.0.0"
+            lib-version:
+              type: string
+              example: "1.0.0"
+            model-service-version:
+              type: string
+              example: "1.0.0"
+    """
     app_service_version = default_config.APP_VERSION
-    lib_version = VersionUtil.get_version()
+    # lib_version = VersionUtil.get_version() || "NOT_SET"
     try:
         model_service_version = fetch_model_service_version()
     except Exception:
@@ -22,14 +51,53 @@ def version():
 
     response_data = {
         'app-service-version': app_service_version,
-        'lib-version': lib_version,
+        # 'lib-version': lib_version,
         'model-service-version': model_service_version
     }
     return jsonify(response_data), 200
 
 @bp.route('/predict-sentiment-review', methods=['POST'])
 def predict():
-    """Predicts sentiment for a given review. 1 for positive, 0 for negative."""
+    """
+    Submit a review message to be predicted as positive or negative.
+    ---
+    consumes:
+      - application/json
+    parameters:
+      - name: review
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            review:
+              type: string
+        description: The review to be analyzed
+    responses:
+      200:
+        description: Prediction result
+        schema:
+          type: object
+          properties:
+            prediction:
+              type: integer
+              enum: [0, 1]
+              description: 1 for positive, 0 for negative
+      400:
+        description: Invalid input
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+      500:
+        description: Internal server error
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+    """
     try:
         data = request.get_json()
         if not data or 'review' not in data:
