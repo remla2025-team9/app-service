@@ -1,3 +1,12 @@
+import sys
+import os
+
+# For running locally (not in Docker)
+if not os.environ.get("DOCKER"):
+    lib_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../lib-version'))
+    if lib_path not in sys.path:
+        sys.path.insert(0, lib_path)
+
 from flask import Flask
 from flask_cors import CORS
 import logging
