@@ -1,6 +1,6 @@
 import requests
 import logging
-from config import default_config
+from .config import default_config
 
 logger = logging.getLogger(__name__)
 model_service_url_config = default_config.MODEL_SERVICE_URL
