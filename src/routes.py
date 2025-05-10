@@ -1,6 +1,6 @@
 from flask import jsonify, current_app, Blueprint
-from model_service import fetch_model_service_version
-from config import default_config
+from .model_service import fetch_model_service_version
+from .config import default_config
 from lib_version.version_util import VersionUtil
 
 bp = Blueprint('routes', __name__)
