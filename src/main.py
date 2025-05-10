@@ -10,8 +10,8 @@ if not os.environ.get("DOCKER"):
 from flask import Flask
 from flask_cors import CORS
 import logging
-from routes import bp
-from config import default_config
+from .routes import bp
+from .config import default_config
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO if not default_config.DEBUG_MODE else logging.DEBUG)
