@@ -1,8 +1,9 @@
 from setuptools import setup, find_packages
 import os
 
+here = os.path.abspath(os.path.dirname(__file__))
 version = {}
-with open(os.path.join("src", "version.py")) as f:
+with open(os.path.join(here, "src", "version.py")) as f:
     exec(f.read(), version)
 
 setup(
@@ -11,11 +12,11 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
-        "lib-version @ git+https://github.com/remla2025-team9/lib-version.git@a1",
+        "lib_version @ git+https://github.com/remla2025-team9/lib-version.git@a1#egg=lib_version",
         "flask",
         "flask-cors",
         "requests",
-        "python-dotenv"
+        "python-dotenv",
     ],
     entry_points={
         "console_scripts": [
