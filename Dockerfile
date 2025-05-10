@@ -17,4 +17,5 @@ ENV FLASK_DEBUG=0
 
 EXPOSE 5000
 
+ENV PYTHONPATH=/app/lib-version
 CMD ["python", "src/main.py"]
