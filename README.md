@@ -65,7 +65,7 @@ Make sure your virtual environment is activated.
 
 ```bash
 # Simple run (uses defaults, potentially debug=True from app.py's __main__ block)
-python app.py
+python src/main.py
 
 # OR Recommended: Use the Flask CLI (respects FLASK_APP, FLASK_DEBUG env vars)
 # Set debug mode via environment variable if needed (0=off, 1=on)

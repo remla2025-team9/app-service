@@ -43,7 +43,7 @@ def version():
               example: "1.0.0"
     """
     app_service_version = default_config.APP_VERSION
-    # lib_version = VersionUtil.get_version() || "NOT_SET"
+    # lib_version = VersionUtil.get_version()
     try:
         model_service_version = fetch_model_service_version()
     except Exception:
