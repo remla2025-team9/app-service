@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
+from flasgger import Swagger
 import logging
 from routes import bp
 from config import default_config
@@ -10,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Create Flask app instance
 app = Flask(__name__)
+Swagger(app)
 
 # Apply configuration from config.py
 app.config['DEBUG'] = default_config.DEBUG_MODE
