@@ -1,6 +1,7 @@
 from flask import jsonify, current_app, Blueprint, request
 from model_service import fetch_model_service_version, predict_sentiment
 import metrics
+import time
 from config import default_config
 # from lib_version.version_util import VersionUtil
 
@@ -119,7 +120,6 @@ def predict():
 
         metrics.predictions_latency.observe(duration)
         metrics.predictions_made.labels(
-            model_version=default_config.MODEL_VERSION,
             predicted_label=str(prediction)
         ).inc()
 

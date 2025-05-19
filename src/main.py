@@ -30,7 +30,7 @@ if __name__ == '__main__':
     app.register_blueprint(bp)
     
     app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
-        '/metrics': make_wsgi_app()
+    '/metrics': make_wsgi_app(registry=metrics.registry)
     })
 
     logger.info(f"Starting server on http://{default_config.HOST}:{default_config.PORT}")

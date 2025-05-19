@@ -15,7 +15,7 @@ reviews_submitted = Counter(
 predictions_made = Counter(
     'predictions_made_total',
     'Total number of model predictions returned',
-    ['model_version', 'predicted_label'],
+    ['predicted_label'],
     registry=registry
 )
 
@@ -42,7 +42,13 @@ reviews_pending = Gauge(
 correct_predictions_rate = Gauge(
     'correct_predictions_rate',
     'Rate of correct predictions made by the model',
-    ['model_version'],
+    registry=registry
+)
+
+user_confirmation_latency = Histogram(
+    'user_confirmation_latency_seconds',
+    'Latency of user confirmation in seconds',
+    buckets=[0.5, 1, 1.5, 2, 3],
     registry=registry
 )
 
