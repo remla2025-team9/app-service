@@ -6,6 +6,7 @@ from routes import bp
 from config import default_config
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 import metrics
+from prometheus_client import make_wsgi_app
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO if not default_config.DEBUG_MODE else logging.DEBUG)
@@ -27,10 +28,9 @@ logger.info(f"Debug mode: {app.config['DEBUG']}")
 
 if __name__ == '__main__':
     app.register_blueprint(bp)
-
-    # Register the metrics endpoint
+    
     app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
-        '/metrics': metrics.metrics_response
+        '/metrics': make_wsgi_app()
     })
 
     logger.info(f"Starting server on http://{default_config.HOST}:{default_config.PORT}")
