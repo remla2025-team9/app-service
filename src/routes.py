@@ -3,7 +3,10 @@ from model_service import fetch_model_service_version, predict_sentiment
 import metrics
 import time
 from config import default_config
+import logging
 # from lib_version.version_util import VersionUtil
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('routes', __name__)
 
@@ -117,14 +120,14 @@ def predict():
         start_time = time.monotonic()
         prediction = predict_sentiment(review)
         duration = time.monotonic() - start_time
-
+        predicted_label = 'positive' if prediction == 1 else 'negative'
         metrics.predictions_latency.observe(duration)
         metrics.predictions_made.labels(
-            predicted_label=str(prediction)
+            predicted_label=predicted_label
         ).inc()
 
         response_data = {
-            'prediction': prediction,
+            'prediction': predicted_label,
         }
         return jsonify(response_data), 200
 
@@ -139,28 +142,84 @@ def confirm_review():
     """
     Body: {
       "action": "confirm"|"override",
-      "originalLabel": 0|1,
-      "correctedLabel": 0|1,       # only for override
-      "duration": float           # seconds between display and click
+      "originalLabel": "negative"|"neutral"|"positive",
+      "correctedLabel": "negative"|"neutral"|"positive",   # only for override
     }
     """
     data = request.get_json()
     action = data['action']
     orig = str(data['originalLabel'])
     corr = str(data.get('correctedLabel', orig))
-    dur  = float(data['duration'])
 
     # 1) Decrement pending gauge
     metrics.reviews_pending.dec()
 
-    # 2) Record user latency
-    metrics.user_confirmation_latency.observe(dur)
-
-    # 3) If override, bump override counter
+    # 2) If override, bump override counter
     if action == 'override':
         metrics.overrides_by_user.labels(
             original_label=orig,
             corrected_label=corr
         ).inc()
+    
+    # 3) Modify the correct prediction rate based on the overrides and total predictions
+    total_predictions = sum(
+        sample.value for sample in metrics.predictions_made.collect()[0].samples
+        if sample.name == 'predictions_made_total'
+    )
+    total_overrides = sum(
+        sample.value for sample in metrics.overrides_by_user.collect()[0].samples
+        if sample.name == 'overrides_by_user_total'
+    )
+    print(f"[DEBUG] total_predictions={total_predictions}, total_overrides={total_overrides}", flush=True)
+    if total_predictions > 0:
+        correct_rate = (total_predictions - total_overrides) / total_predictions
+        metrics.correct_predictions_rate.set(correct_rate)
+    else:
+        metrics.correct_predictions_rate.set(0)
+
+    # 4) Update the true positive
+    total_positive = sum(
+        sample.value for sample in metrics.predictions_made.collect()[0].samples
+        if sample.name == 'predictions_made_total' and sample.labels['predicted_label'] == 'positive'
+    )
+    override_positive = sum(
+        sample.value for sample in metrics.overrides_by_user.collect()[0].samples
+        if sample.name == 'overrides_by_user_total' and sample.labels['original_label'] == 'positive'
+    )
+    if total_positive > 0:
+        true_positive_rate = (total_positive - override_positive) / total_positive
+        metrics.true_positive_predictions_rate.set(true_positive_rate)
+    else:
+        metrics.true_positive_predictions_rate.set(0)
+    
+    # 5) Update the true neutral
+    total_neutral = sum(
+        sample.value for sample in metrics.predictions_made.collect()[0].samples
+        if sample.name == 'predictions_made_total' and sample.labels['predicted_label'] == 'neutral'
+    )
+    override_neutral = sum(
+        sample.value for sample in metrics.overrides_by_user.collect()[0].samples
+        if sample.name == 'overrides_by_user_total' and sample.labels['original_label'] == 'neutral'
+    )
+    if total_neutral > 0:
+        true_neutral_rate = (total_neutral - override_neutral) / total_neutral
+        metrics.true_neutral_predictions_rate.set(true_neutral_rate)
+    else:
+        metrics.true_neutral_predictions_rate.set(0)
+    
+    # 6) Update the true negative
+    total_negative = sum(
+        sample.value for sample in metrics.predictions_made.collect()[0].samples
+        if sample.name == 'predictions_made_total' and sample.labels['predicted_label'] == 'negative'
+    )
+    override_negative = sum(
+        sample.value for sample in metrics.overrides_by_user.collect()[0].samples
+        if sample.name == 'overrides_by_user_total' and sample.labels['original_label'] == 'negative'
+    )
+    if total_negative > 0:
+        true_negative_rate = (total_negative - override_negative) / total_negative
+        metrics.true_negative_predictions_rate.set(true_negative_rate)
+    else:
+        metrics.true_negative_predictions_rate.set(0)
 
     return '', 204

@@ -1,6 +1,7 @@
 import time
 from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry, generate_latest, CONTENT_TYPE_LATEST
 from flask import Response
+import re
 
 # Create a registry for the metrics
 registry = CollectorRegistry(auto_describe=True)
@@ -45,16 +46,27 @@ correct_predictions_rate = Gauge(
     registry=registry
 )
 
-user_confirmation_latency = Histogram(
-    'user_confirmation_latency_seconds',
-    'Latency of user confirmation in seconds',
-    buckets=[0.5, 1, 1.5, 2, 3],
+true_positive_predictions_rate = Gauge(
+    'true_positive_predictions_rate',
+    'Rate of correct positive predictions made by the model',
     registry=registry
 )
 
-def metrics_response():
-    """
-    Returns the latest metrics in Prometheus format.
-    """
-    return Response(generate_latest(registry), mimetype=CONTENT_TYPE_LATEST)
+true_negative_predictions_rate = Gauge(
+    'true_negative_predictions_rate',
+    'Rate of correct negative predictions made by the model',
+    registry=registry
+)
 
+true_neutral_predictions_rate = Gauge(
+    'true_neutral_predictions_rate',
+    'Rate of correct neutral predictions made by the model',
+    registry=registry
+)
+
+# Function to generate the metrics response
+def filtered_metrics_response(registry):
+    data = generate_latest(registry).decode('utf-8').splitlines()
+    drop_re = re.compile(r'(^[^#].*_created\b|^# (?:HELP|TYPE) .*_created\b)')
+    lines = [line for line in data if not drop_re.search(line)]
+    return Response('\n'.join(lines) + '\n', mimetype=CONTENT_TYPE_LATEST)
