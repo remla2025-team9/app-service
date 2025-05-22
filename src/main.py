@@ -28,12 +28,6 @@ logger.info(f"Debug mode: {app.config['DEBUG']}")
 
 if __name__ == '__main__':
     app.register_blueprint(bp)
-    
-    app.add_url_rule(
-    '/metrics',
-    endpoint='metrics',
-    view_func=lambda: metrics.filtered_metrics_response(metrics.registry)
-    )
 
     logger.info(f"Starting server on http://{default_config.HOST}:{default_config.PORT}")
     app.run(

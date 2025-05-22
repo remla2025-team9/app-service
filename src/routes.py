@@ -61,6 +61,22 @@ def version():
     }
     return jsonify(response_data), 200
 
+@bp.route('/metrics', methods=['GET'])
+def metrics_endpoint():
+    """
+    Returns Prometheus metrics.
+    ---
+    produces:
+      - application/json
+    responses:
+      200:
+        description: Metrics data
+        schema:
+          type: string
+          example: "app_service_metrics{version=\"1.0.0\"} 1.0"
+    """
+    return metrics.filtered_metrics_response(metrics.registry), 200
+
 @bp.route('/predict-sentiment-review', methods=['POST'])
 def predict():
     """
@@ -140,11 +156,46 @@ def predict():
 @bp.route('/reviews/confirm', methods=['POST'])
 def confirm_review():
     """
-    Body: {
-      "action": "confirm"|"override",
-      "originalLabel": "negative"|"neutral"|"positive",
-      "correctedLabel": "negative"|"neutral"|"positive",   # only for override
-    }
+    Handles the confirmation/override of a review.
+    ---
+    consumes:
+      - application/json
+    parameters:
+      - name: confirmation
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            action:
+              type: string
+              enum: [confirm, override]
+              description: Action to take on the review
+            originalLabel:
+              type: string
+              enum: [negative, neutral, positive]
+              description: Original label of the review
+            correctedLabel:
+              type: string
+              enum: [negative, neutral, positive]
+              description: Corrected label of the review (only for override)
+    responses:
+      204:
+        description: Review confirmed/overridden successfully
+      400:
+        description: Invalid input
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+      500:
+        description: Internal server error
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
     """
     data = request.get_json()
     action = data['action']
