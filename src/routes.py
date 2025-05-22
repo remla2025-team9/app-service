@@ -143,7 +143,7 @@ def predict():
         ).inc()
 
         response_data = {
-            'prediction': predicted_label,
+            'prediction': prediction,
         }
         return jsonify(response_data), 200
 
