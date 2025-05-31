@@ -1,0 +1,95 @@
+# This workflow builds and pushes a Docker image for a canary feature deployment.
+
+name: Canary Feature Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      experiment_name:
+        description: 'Optional: Custom name for this experiment/feature tag (e.g., "new-sentiment-model"). If empty, the branch name will be used.'
+        required: false
+        type: string
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
+  CANARY_TAG: canary # The stable tag for your experimental deployment slot
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push-canary:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Determine Feature Tag Name
+      id: feature_tag_name
+      run: |
+        INPUT_NAME="${{ github.event.inputs.experiment_name }}"
+        BRANCH_NAME="${{ github.ref_name }}"
+
+        if [ -n "$INPUT_NAME" ]; then
+          RAW_NAME="$INPUT_NAME"
+        else
+          RAW_NAME="$BRANCH_NAME"
+        fi
+
+        # Sanitize the raw name (remove refs/heads/, replace slashes, etc.)
+        SANITIZED_NAME=$(echo "$RAW_NAME" | sed 's#refs/heads/##g' | tr -s '/' '-' | sed 's/[^a-zA-Z0-9._-]/-/g' | sed 's/^-*//;s/-*$//')
+        # Ensure it's not empty after sanitization, default to 'feature' if it is
+        if [ -z "$SANITIZED_NAME" ]; then
+          SANITIZED_NAME="feature"
+        fi
+        echo "feature_tag=${SANITIZED_NAME}" >> $GITHUB_OUTPUT
+        echo "Determined feature tag: ${SANITIZED_NAME}"
+
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Generate image metadata (tags, labels)
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.IMAGE_NAME }}
+        tags: |
+          type=raw,value=${{ steps.feature_tag_name.outputs.feature_tag }}
+          type=raw,value=${{ env.CANARY_TAG }}
+        flavor: |
+          latest=false
+
+    - name: Log in to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build & push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: . 
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        # TODO: get correct version to add to the build args
+        build-args: |
+          NEXT_PUBLIC_APP_VERSION="version beta-${{ steps.feature_tag_name.outputs.feature_tag }}"
+        cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
+        cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max,image-manifest=true
+
+    - name: Output image tags
+      run: |
+        echo "Pushed image with tags: ${{ steps.meta.outputs.tags }}"
+        echo "-------------------------------------------------------------------------"
+        echo "Image for this specific feature/experiment: ${{ env.IMAGE_NAME }}:${{ steps.feature_tag_name.outputs.feature_tag }}"
+        echo "Image for the canary deployment slot:       ${{ env.IMAGE_NAME }}:${{ env.CANARY_TAG }}"
+        echo "-------------------------------------------------------------------------"
+        echo "Update your Kubernetes experimental deployment to use: ${{ env.IMAGE_NAME }}:${{ env.CANARY_TAG }}"
