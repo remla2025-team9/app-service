@@ -104,6 +104,12 @@ def predict():
               type: integer
               enum: [0, 1]
               description: 1 for positive, 0 for negative
+            prediction_confidence:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 1
+              description: Confidence score of the prediction between 0 and 1
       400:
         description: Invalid input
         schema:
@@ -134,7 +140,7 @@ def predict():
 
         # Start the timer for latency measurement
         start_time = time.monotonic()
-        prediction = predict_sentiment(review)
+        prediction, prediction_confidence = predict_sentiment(review)
         duration = time.monotonic() - start_time
         predicted_label = 'positive' if prediction == 1 else 'negative'
         metrics.predictions_latency.observe(duration)
@@ -144,6 +150,7 @@ def predict():
 
         response_data = {
             'prediction': prediction,
+            'prediction_confidence': prediction_confidence,
         }
         return jsonify(response_data), 200
 

@@ -53,9 +53,9 @@ def predict_sentiment(review):
         response.raise_for_status()
 
         data = response.json()
-        if 'prediction' in data and isinstance(data['prediction'], int):
-            logger.info(f"Successfully received prediction: {data['prediction']}")
-            return data['prediction']
+        if 'prediction' in data and isinstance(data['prediction'], int) and 'prediction_confidence' in data and isinstance(data['prediction_confidence'], float):
+            logger.info(f"Successfully received prediction: {data['prediction']}, confidence: {data['prediction_confidence']}")
+            return data['prediction'], data['prediction_confidence']
         else:
             logger.error(f"Invalid JSON structure from model service: {data} at {predict_endpoint}")
             raise ValueError("Invalid JSON structure: 'prediction' key not found or not a string.")
