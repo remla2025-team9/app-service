@@ -118,6 +118,7 @@ The application uses environment variables for configuration:
 *   `FLASK_APP`: (Default: `app.py`) Specifies the application file for Flask.
 *   `FLASK_RUN_HOST`: (Default: `0.0.0.0`) Host Flask listens on inside the container.
 *   `FLASK_DEBUG`: (Default: `0`) Set to `1` to enable Flask's debug mode (Do NOT use `1` in production).
+*   `APP_VERSION_LABEL`: (Default: `development`) This is the label that will be used to set the "version_label" for the metrics collected by Prometheus
 *   `MODEL_SERVICE_URL`: URL of the model service. Should be set to communicate with the model service.
 
 Use Docker secrets, orchestration tool secrets management, or pass via `-e` for non-sensitive runtime config.
