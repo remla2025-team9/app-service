@@ -81,7 +81,7 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         # TODO: get correct version to add to the build args
         build-args: |
-          APP_VERSION="version beta-${{ steps.feature_tag_name.outputs.feature_tag }}"
+          APP_VERSION=version beta-${{ steps.feature_tag_name.outputs.feature_tag }}
         cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
         cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max,image-manifest=true
 

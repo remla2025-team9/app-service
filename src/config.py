@@ -13,6 +13,7 @@ class Config:
         PORT = 5000
 
     MODEL_SERVICE_URL = os.getenv('MODEL_SERVICE_URL')
-    APP_VERSION = os.getenv('APP_VERSION', 'NOT SET')
+    APP_VERSION = os.getenv('APP_VERSION', 'NOT_SET')
+    APP_VERSION_LABEL = os.getenv('APP_VERSION_LABEL', 'NOT_SET')
 
 default_config = Config()
