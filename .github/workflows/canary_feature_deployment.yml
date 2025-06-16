@@ -1,7 +1,7 @@
 # This workflow builds and pushes a Docker image for a canary feature deployment.
-
 name: Canary Feature Deployment
 
+# Manual trigger with optional input for naming the experiment/feature
 on:
   workflow_dispatch:
     inputs:
@@ -10,19 +10,25 @@ on:
         required: false
         type: string
 
+# Environment variables for container registry, tags and Git configuration
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
   CANARY_TAG: canary # The stable tag for your experimental deployment slot
+  GIT_USER_NAME: "github-actions[bot]"
+  GIT_USER_EMAIL: "github-actions[bot]@users.noreply.github.com"
 
+# Permissions needed for pushing container images and creating tags
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
+  # Job that builds and deploys the canary version
   build-and-push-canary:
     runs-on: ubuntu-latest
 
     steps:
+    # Determines the feature tag name from user input or branch name
     - name: Determine Feature Tag Name
       id: feature_tag_name
       run: |
@@ -44,26 +50,39 @@ jobs:
         echo "feature_tag=${SANITIZED_NAME}" >> $GITHUB_OUTPUT
         echo "Determined feature tag: ${SANITIZED_NAME}"
 
+    # Creates the version tag name to be used in multiple steps
+    - name: Set Version Tag
+      id: version_tag
+      run: |
+        VERSION_TAG="version.beta-${{ steps.feature_tag_name.outputs.feature_tag }}"
+        echo "tag=${VERSION_TAG}" >> $GITHUB_OUTPUT
+        echo "Created version tag: ${VERSION_TAG}"
+
+    # Checks out the repository code
     - name: Checkout Code
       uses: actions/checkout@v4
 
+    # Sets up QEMU for multi-architecture builds
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
 
+    # Sets up Docker buildx for multi-platform builds
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    # Prepares metadata for container image including tags and labels
     - name: Generate image metadata (tags, labels)
       id: meta
       uses: docker/metadata-action@v5
       with:
         images: ${{ env.IMAGE_NAME }}
         tags: |
-          type=raw,value=${{ steps.feature_tag_name.outputs.feature_tag }}
+          type=raw,value=${{ steps.version_tag.outputs.tag }}
           type=raw,value=${{ env.CANARY_TAG }}
         flavor: |
           latest=false
 
+    # Authenticates with GitHub Container Registry for pushing images
     - name: Log in to GHCR
       uses: docker/login-action@v3
       with:
@@ -71,6 +90,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    # Builds and pushes the multi-architecture container image
     - name: Build & push Docker image
       uses: docker/build-push-action@v5
       with:
@@ -79,12 +99,34 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        # TODO: get correct version to add to the build args
         build-args: |
-          APP_VERSION=version beta-${{ steps.feature_tag_name.outputs.feature_tag }}
+          APP_VERSION=${{ steps.version_tag.outputs.tag }}
         cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
         cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max,image-manifest=true
 
+    # Sets up Git identity for automated commits
+    - name: Configure Git
+      run: |
+        git config user.name "${{ env.GIT_USER_NAME }}"
+        git config user.email "${{ env.GIT_USER_EMAIL }}"
+        git remote set-url origin git@github.com:${{ github.repository }}.git
+
+    # Sets up SSH for pushing changes to the repository
+    - name: Setup SSH for pushing
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.DEPLOY_KEY_PRIVATE }}
+
+    # Creates a Git tag for tracking this feature version
+    - name: Create Git tag for feature branch
+      run: |
+        echo "Creating tag: ${{ steps.version_tag.outputs.tag }}"
+        git tag -a "${{ steps.version_tag.outputs.tag }}" -m "Canary feature deployment for ${{ steps.feature_tag_name.outputs.feature_tag }}"
+        git push origin "${{ steps.version_tag.outputs.tag }}"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Outputs helpful information about the deployed images
     - name: Output image tags
       run: |
         echo "Pushed image with tags: ${{ steps.meta.outputs.tags }}"
