@@ -14,8 +14,6 @@ permissions:
 jobs:
   # Job to create a new pre-release tag for versioning
   update-tag:
-    # Skip this job if the commit was made by the GitHub Actions bot
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
 
     steps:
