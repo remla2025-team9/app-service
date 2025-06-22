@@ -1,5 +1,7 @@
+# Workflow for creating stable releases and deploying container images
 name: Deployment
 
+# Manual trigger with release type selection options
 on:
   workflow_dispatch:
     inputs:
@@ -13,23 +15,48 @@ on:
         - major
         default: patch
 
+# Permissions needed for creating releases and pushing container images
 permissions:
   contents: write    
   packages:  write      
   
+# Environment variables for container registry and Git configuration
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
+  GIT_USER_NAME: "github-actions[bot]"
+  GIT_USER_EMAIL: "github-actions[bot]@users.noreply.github.com"
 
 jobs:
-
+  # Main job that handles version bumping, container building, and deployment
   build-and-deploy:
     runs-on: ubuntu-24.04
 
     steps:
+    # Checkout repository with full history for proper version calculation
     - uses: actions/checkout@v4  
       with:
         fetch-depth: 0
 
+    # Sets up Git identity for automated commits
+    - name: Configure Git
+      run: |
+        git config user.name "${{ env.GIT_USER_NAME }}"
+        git config user.email "${{ env.GIT_USER_EMAIL }}"
+        git remote set-url origin git@github.com:${{ github.repository }}.git
+
+    # Sets up SSH for pushing changes to the repository to bypass branch protection rules
+    - name: Setup SSH for pushing
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.DEPLOY_KEY_PRIVATE }}
+
+    # Creates an empty commit to mark the stable release
+    - name: Create stable release commit
+      run: |
+        git commit --allow-empty -m "Stable release commit triggered by GitHub deployment action [skip ci]"
+        git push
+
+    # Bumps version according to selected release level and creates a stable tag
     - name: Bump stable version
       id: bump_stable_tag
       uses: mathieudutour/github-tag-action@v6.2
@@ -38,6 +65,14 @@ jobs:
         release_branches: main
         default_bump: ${{ github.event.inputs.bump_level }}  
         tag_prefix: v
+
+    # Creates a GitHub release with the new version tag and changelog
+    - name: Create a GitHub release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ steps.bump_stable_tag.outputs.new_tag }}
+        name: Release ${{ steps.bump_stable_tag.outputs.new_tag }}
+        body: ${{ steps.bump_stable_tag.outputs.changelog }}    
     
     # Enables the runner to emulate different architectures
     - name: Set up QEMU
@@ -47,6 +82,7 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    # Prepares image tags and labels for the container build
     - name: Generate image metadata (tags, labels)
       id: meta
       uses: docker/metadata-action@v5
@@ -57,6 +93,7 @@ jobs:
           type=raw,value=latest
           type=raw,value=${{ steps.bump_stable_tag.outputs.new_tag }}
 
+    # Authenticates with GitHub Container Registry for pushing images
     - name: Log in to GHCR
       uses: docker/login-action@v3
       with:
@@ -64,6 +101,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    # Builds and pushes the multi-architecture container image
     - name: Build & push docker image
       uses: docker/build-push-action@v5
       with:
@@ -76,6 +114,13 @@ jobs:
         cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
         cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max,image-manifest=true
 
+    # Creates an empty commit to start the next development cycle
+    - name: Create next pre-release commit
+      run: |
+        git commit --allow-empty -m "New pre-release commit triggered by GitHub deployment action [skip ci]"
+        git push
+
+    # Creates a new pre-release tag for ongoing development
     - name: Bump patch and add pre tag
       id: bump_patch
       if: github.ref == 'refs/heads/main'

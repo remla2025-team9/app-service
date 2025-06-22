@@ -1,26 +1,34 @@
+# Integration workflow for pull requests
+# This workflow builds the Docker image to validate it but doesn't push it
 name: Integration
 
+# Only trigger on pull requests to main branch
+# Skip running for changes to GitHub workflows and documentation
 on:
   pull_request:
     branches: [main] 
     paths-ignore: [".github/**", "README.md"]       
 
 jobs:
+  # Main build job that validates the Docker image builds successfully
   build:
     runs-on: ubuntu-24.04
 
     steps:
+      # Check out the repository code
       - name: Checkout source
         uses: actions/checkout@v4
 
-      # Enables the runner to emulate different architectures for the build
+      # Set up QEMU for multi-architecture builds (enables ARM64 emulation)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # Creates a builder instance capable of multi-platform builds
+      # Configure Docker buildx for multi-platform image building
       - name: Set up docker buildx
         uses: docker/setup-buildx-action@v3
 
+      # Build the Docker image for multiple architectures but don't push
+      # This validates the Dockerfile works properly
       - name: Build docker image for multi-architecture
         id: docker_build_validate
         uses: docker/build-push-action@v5
