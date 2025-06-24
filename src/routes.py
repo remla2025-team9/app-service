@@ -4,7 +4,7 @@ import metrics
 import time
 from config import default_config
 import logging
-# from lib_version.version_util import VersionUtil
+from lib_version.version_util import VersionUtil
 
 logger = logging.getLogger(__name__)
 
@@ -42,15 +42,18 @@ def version():
             app-service-version:
               type: string
               example: "1.0.0"
-            lib-version:
+            model-service-version:
               type: string
               example: "1.0.0"
-            model-service-version:
+            lib-version:
               type: string
               example: "1.0.0"
     """
     app_service_version = default_config.APP_VERSION
-    # lib_version = VersionUtil.get_version()
+    try:
+      lib_version = VersionUtil.get_version()
+    except Exception as e:
+        lib_version = "DISCONNECTED"
     try:
         model_service_version = fetch_model_service_version()
     except Exception:
@@ -58,8 +61,8 @@ def version():
 
     response_data = {
         'app-service-version': app_service_version,
-        # 'lib-version': lib_version,
         'model-service-version': model_service_version,
+        'lib-version': lib_version,
     }
     return jsonify(response_data), 200
 
@@ -69,13 +72,13 @@ def metrics_endpoint():
     Returns Prometheus metrics.
     ---
     produces:
-      - application/json
+      - text/plain
     responses:
       200:
-        description: Metrics data
+        description: Metrics data in Prometheus format
         schema:
           type: string
-          example: "app_service_metrics{version=\"1.0.0\"} 1.0"
+          example: 'app_service_metrics{version="1.0.0"} 1.0'
     """
     return metrics.filtered_metrics_response(metrics.registry), 200
 
