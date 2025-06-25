@@ -17,6 +17,7 @@ Before you begin, ensure you have the following installed:
 *   [Python](https://www.python.org/) (Version 3.10+ recommended, check `Dockerfile` or `setup-python` step in workflow for specific version used)
 *   [pip](https://pip.pypa.io/en/stable/installation/) (usually comes with Python)
 *   [Docker](https://www.docker.com/get-started/)
+*   [Git](https://git-scm.com/)
 
 ## Getting Started
 
@@ -187,7 +188,6 @@ This repository implements a comprehensive CI/CD pipeline using GitHub Actions w
 **Process**:
 - Builds Docker images for multiple architectures (`linux/amd64`, `linux/arm64`)
 - Validates Dockerfile and build process
-- Uses GitHub Actions cache for faster builds
 - **Does not push images** - validation only
 
 ### 2. Delivery Workflow (`delivery.yml`)  
