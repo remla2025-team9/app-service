@@ -3,7 +3,12 @@ import logging
 from config import default_config
 
 logger = logging.getLogger(__name__)
-model_service_url_config = default_config.MODEL_SERVICE_URL.rstrip('/')
+
+try:
+    model_service_url_config = default_config.MODEL_SERVICE_URL.rstrip('/')
+except:
+    logger.error("MODEL_SERVICE_URL is not set or invalid in the configuration.")
+    model_service_url_config = None
 
 def fetch_model_service_version():
     """

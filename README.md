@@ -1,13 +1,15 @@
-# app-service
+# App Service
 
-Flask app
+A Flask-based web service that provides sentiment analysis functionality and health monitoring endpoints.
 
-## Description
+## Overview
 
-This service currently provides:
-*   A healthcheck route (`/healthcheck`) that displays the health status of the flask service
-*   A Dockerfile for building a container image.
-*   A GitHub Actions workflow for basic CI/CD
+This service is part of a microservices architecture and provides:
+- **Health Monitoring**: Status checks for service availability
+- **Version Information**: Application and dependency version tracking  
+- **Sentiment Analysis**: Predict sentiment of text reviews (positive/negative)
+- **Metrics Integration**: Prometheus-compatible metrics collection
+- **API Documentation**: Interactive Swagger/OpenAPI documentation
 
 ## Prerequisites
 
@@ -15,6 +17,7 @@ Before you begin, ensure you have the following installed:
 *   [Python](https://www.python.org/) (Version 3.10+ recommended, check `Dockerfile` or `setup-python` step in workflow for specific version used)
 *   [pip](https://pip.pypa.io/en/stable/installation/) (usually comes with Python)
 *   [Docker](https://www.docker.com/get-started/)
+*   [Git](https://git-scm.com/)
 
 ## Getting Started
 
@@ -26,15 +29,15 @@ It's highly recommended to use a virtual environment:
 
 ```bash
 # Create virtual environment
-python -m venv venv
+python -m venv .venv
 
 # Activate it
 # Linux/macOS:
-source venv/bin/activate
+source .venv/bin/activate
 # Windows (cmd.exe):
-.\venv\Scripts\activate
+.\.venv\Scripts\activate
 # Windows (PowerShell):
-.\venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 
 # Install dependencies
 pip install -r requirements.txt
@@ -57,134 +60,174 @@ This project uses environment variables for configuration. A template file is pr
 *   **Fill in values:** Replace the placeholder values with your actual local development settings.
 *   **Important:** The `.env` file should **NOT** be committed to Git (it should be listed in your `.gitignore`). It's for your local setup only.
 
+
 ## Running the Application
 
-### Locally (using Flask development server)
+### Local Development (Flask Development Server)
 
-Make sure your virtual environment is activated.
+Ensure your virtual environment is activated:
 
 ```bash
-# Simple run (uses defaults, potentially debug=True from app.py's __main__ block)
+# Run using Python directly
 python src/main.py
-
-# OR Recommended: Use the Flask CLI (respects FLASK_APP, FLASK_DEBUG env vars)
-# Set debug mode via environment variable if needed (0=off, 1=on)
-# export FLASK_DEBUG=1 # Linux/macOS
-# $env:FLASK_DEBUG=1  # PowerShell
-# set FLASK_DEBUG=1   # Windows CMD
-flask run --host=0.0.0.0 --port=5000
-```
-The application will be accessible at `http://localhost:5000`.
-
-### Using Docker
-
-First, build the Docker image:
-
-```bash
-# Build the image and tag it (replace 'my-flask-app' with your preferred tag)
-docker build -t my-flask-app .
 ```
 
-Then, run the container:
+The application will be available at `http://localhost:5000` when the env file was not changed.
+
+### Docker Deployment
+
+Build and run the containerized application:
 
 ```bash
-# Run in detached mode (-d), map port 5000 (-p), name the container
-docker run -p 5000:5000 app-service
+# Build the Docker image
+docker build -t app-service .
 
-# You can override environment variables during run time:
-# docker run -d -p 5000:5000 --name my-running-app \
-#   -e MODEL_SERVICE_URL="http://localhost:8080/" \
-#   my-flask-app
+# Run the container
+docker run -d -p 5000:5000 --name app-service-container app-service
+
+# Run with environment variables
+docker run -d -p 5000:5000 --name app-service-container \
+  -e MODEL_SERVICE_URL="http://model-service:8080" \
+  app-service
 ```
-The application will be accessible at `http://localhost:5000`.
 
-To stop the container:
+**Container Management:**
 ```bash
-docker stop app-service
-```
-To remove the container:
-```bash
-docker rm app-service
+# Stop the container
+docker stop app-service-container
+
+# Remove the container
+docker rm app-service-container
+
+# View logs
+docker logs app-service-container
 ```
 
 ## API Endpoints
 
-*   `GET /healthcheck`: Displays the health status of the flask service.
+The service exposes the following REST endpoints:
 
-## Configuration / Environment Variables
+- **`GET /healthcheck`** - Service health status check
+- **`GET /version`** - Application and dependency version information
+- **`POST /predict-sentiment-review`** - Sentiment analysis for review text
+- **`GET /apidocs`** - Interactive Swagger UI documentation
+
+## API Documentation (Swagger)
+
+This application uses Flasgger to provide interactive API documentation through Swagger UI. The API documentation is automatically generated from the docstrings in the route definitions.
+
+### Accessing the Documentation
+
+Once the application is running, you can access the Swagger UI at:
+* `http://localhost:5000/apidocs`
+
+The Swagger UI provides:
+* Interactive documentation for all endpoints
+* Request/response schemas
+* Example values
+* The ability to try out API calls directly from the browser
+
+### Documentation Format
+
+Route handlers use YAML-style docstrings that follow the OpenAPI specification:
+
+```python
+@bp.route('/example')
+def example():
+    """
+    Example endpoint description.
+    ---
+    responses:
+      200:
+        description: Success response
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Success"
+    """
+```
+
+### Dependencies
+
+The Swagger UI integration requires:
+* `flasgger` package (included in requirements.txt)
+* Properly formatted YAML docstrings in route handlers
+
+## Configuration
 
 The application uses environment variables for configuration:
 
-*   `FLASK_APP`: (Default: `app.py`) Specifies the application file for Flask.
-*   `FLASK_RUN_HOST`: (Default: `0.0.0.0`) Host Flask listens on inside the container.
-*   `FLASK_DEBUG`: (Default: `0`) Set to `1` to enable Flask's debug mode (Do NOT use `1` in production).
-*   `APP_VERSION_LABEL`: (Default: `development`) This is the label that will be used to set the "version_label" for the metrics collected by Prometheus
-*   `MODEL_SERVICE_URL`: URL of the model service. Should be set to communicate with the model service.
+### Core Flask Configuration
+- **`FLASK_APP`**: Application entry point (Default: `src/main.py`)
+- **`FLASK_RUN_HOST`**: Host address for Flask server (Default: `0.0.0.0`)
+- **`FLASK_RUN_PORT`**: Port for Flask server (Default: `5000`)
+- **`FLASK_DEBUG`**: Debug mode flag (Default: `0`, set to `1` for development only)
 
-Use Docker secrets, orchestration tool secrets management, or pass via `-e` for non-sensitive runtime config.
+### Application Configuration
+- **`APP_VERSION`**: Application version string (injected during Docker build)
+- **`APP_VERSION_LABEL`**: Version label for Prometheus metrics (Default: `development`)
+- **`MODEL_SERVICE_URL`**: URL of the external model service for sentiment analysis
 
-## Continuous Integration
-
-This repository uses GitHub Actions for Continuous Integration. The workflow is defined in `.github/workflows/integration.yml`.
-
-On every pull request targeting the `main` branch, the workflow automatically:
-1.  Checks out the code.
-2.  Builds the Docker image for `linux/amd64` and `linux/arm64` to validate the build process (without pushing the image).
-3.  
+### Security Notes
+- Never enable `FLASK_DEBUG=1` in production environments
+- Use Docker secrets or orchestration tools for sensitive configuration
+- Store the `.env` file locally only (excluded from Git)
 
 
-## Continuous Delivery (Pre-Release Tagging)
+## CI/CD Pipeline
 
-This repository utilizes GitHub Actions for a simple Continuous Delivery process focused on automatic version tagging on the `main` branch. The workflow is defined in `.github/workflows/delivery.yml`.
+This repository implements a comprehensive CI/CD pipeline using GitHub Actions with three main workflows:
 
-**Process:**
+### 1. Integration Workflow (`integration.yml`)
+**Purpose**: Validates code changes on pull requests
 
-1.  **Trigger:** The workflow runs automatically whenever changes are pushed to the `main` branch.
-2.  **Versioning:** It uses the `mathieudutour/github-tag-action` to:
-    *   Check the latest existing Git tag.
-    *   Determine the next appropriate version based on semantic versioning rules, specifically for pre-releases.
-    *   If the previous tag was a stable release (e.g., `v1.2.0`), it calculates the next *pre-patch* version (e.g., `v1.2.1-pre.0`).
-    *   If the previous tag was already a pre-release (e.g., `v1.2.1-pre.0`), it increments the pre-release identifier (e.g., `v1.2.1-pre.1`).
-    *   If no previous tags exist, it starts with `v0.1.0-pre.0`.
-3.  **Tag Creation:** A new Git tag (prefixed with `v` and appended with `-pre.[number]`) corresponding to the calculated version is automatically created and pushed to the repository.
+**Triggers**: Pull requests to `main` branch (excludes documentation changes)
 
-**Important Notes:**
+**Process**:
+- Builds Docker images for multiple architectures (`linux/amd64`, `linux/arm64`)
+- Validates Dockerfile and build process
+- **Does not push images** - validation only
 
-*   This workflow **only creates pre-release Git tags** on the `main` branch. It does **not** create formal GitHub Releases or trigger deployments.
-*   Full releases (stable tags without the `-pre` suffix) are intentionally disabled in this workflow (`release_branches: '_NONE_'`) and would need to be created via the deployment workflow manually
+### 2. Delivery Workflow (`delivery.yml`)  
+**Purpose**: Automatic pre-release versioning on main branch
 
-## Deployment Workflow (Manual Trigger)
+**Triggers**: Direct pushes to `main` branch
 
-This repository includes a GitHub Actions workflow for building and deploying stable releases. The workflow is defined in `.github/workflows/deployment.yml`.
+**Process**:
+- Automatically creates pre-release tags (e.g., `v1.2.0-pre.1`)
+- Increments version numbers using semantic versioning
+- Prepares repository for continuous development
+- **Does not build or deploy** - tagging only
 
-**Process:**
+### 3. Deployment Workflow (`deployment.yml`)
+**Purpose**: Manual stable releases and container deployment
 
-1.  **Trigger:** This workflow is **not** automatic. It must be triggered manually via the GitHub Actions UI (`workflow_dispatch`). You can typically trigger it from the `main` branch.
-2.  **Versioning:**
-    *   The workflow first determines the target *stable* version number.
-    *   If the workflow was triggered by pushing a stable tag (e.g., `v1.2.0`), it uses that exact version number (stripping the `v`).
-    *   If triggered manually (e.g., on the `main` branch), it finds the *most recent* tag (usually a pre-release like `v1.2.0-pre.5`) and strips the `-pre.*` suffix to get the base stable version (e.g., `1.2.0`).
-    *   It then creates a new, stable Git tag matching this resolved version (e.g., `1.2.0`) if it doesn't already exist.
-3.  **Docker Build & Push:**
-    *   Sets up Docker Buildx for multi-platform builds (`linux/amd64`, `linux/arm64`).
-    *   Logs into the GitHub Container Registry (GHCR).
-    *   Builds the Docker image, injecting the resolved stable version number as the `APP_VERSION` build argument (making the application version-aware).
-    *   Pushes the image to GHCR using two tags:
-        *   `latest`
-        *   The resolved stable version number (e.g., `ghcr.io/owner/repo:1.2.0`)
-    *   Utilizes the registry for build caching (`type=registry`) to speed up subsequent builds.
-4.  **Next Pre-Release Tag (if triggered on `main`):**
-    *   *After successfully creating the stable tag and pushing the image*, if the workflow was triggered on the `main` branch, it automatically calculates and creates the *next* pre-release patch tag (e.g., if `1.2.0` was just released, it creates `v1.2.1-pre.0`). This prepares the repository for the next cycle of development and pre-releases based on the `main` branch.
+**Triggers**: Manual workflow dispatch with version bump options (`patch`, `minor`, `major`)
 
-**How to Use:**
+**Process**:
+1. Creates stable release commit and Git tag
+2. Generates GitHub release with changelog
+3. Builds and pushes multi-architecture Docker images to GHCR
+4. Tags images as `latest` and version-specific (e.g., `v1.2.0`)
+5. Creates next pre-release tag for continued development
 
-1.  Navigate to the "Actions" tab of the repository on GitHub.
-2.  Select the "Deployment" workflow from the list on the left.
-3.  Click the "Run workflow" dropdown button.
-4.  Typically, you will run it from the `main` branch.
-5.  Click "Run workflow".
+**Usage**:
+1. Go to GitHub Actions → "Deployment" workflow
+2. Click "Run workflow" 
+3. Select version bump level (`patch`/`minor`/`major`)
+4. Run from `main` branch
 
-**Important Notes:**
+### 4. Canary Feature Deployment (`canary_feature_deployment.yml`)
+**Purpose**: Deploy experimental features for testing
 
-*   This workflow creates **stable Git tags** (e.g., `1.2.0`) and pushes **stable container images** to GHCR.
-*   The final step of creating the *next* pre-release tag only occurs when manually dispatched from the `main` branch, facilitating continuous development after a release.
+**Triggers**: Manual workflow dispatch with optional experiment name
+
+**Process**:
+- Builds and pushes feature-specific Docker images
+- Creates `canary` tag for experimental deployments
+- Generates version tags like `version.beta-feature-name`
+- Supports deployment from any branch for feature testing
+
+**Container Registry**: All images are pushed to GitHub Container Registry (GHCR)
